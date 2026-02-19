@@ -63,3 +63,57 @@ export const fetchStatuses = async (): Promise<string[]> => {
   if (!response.ok) throw new Error('Failed to fetch statuses');
   return response.json();
 };
+
+export interface RecordsStats {
+  total: number;
+  byStatus: {
+    active: number;
+    discharged: number;
+    pending: number;
+    cancelled: number;
+  };
+  byDepartment: Record<string, number>;
+}
+
+export const fetchRecordsStats = async (): Promise<RecordsStats> => {
+  const response = await fetch(`${API_BASE_URL}/records/stats`);
+  if (!response.ok) throw new Error('Failed to fetch stats');
+  return response.json();
+};
+
+export const updateRecord = async (id: number, data: Partial<CreateRecordData>): Promise<ClinicalRecord> => {
+  const response = await fetch(`${API_BASE_URL}/records/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to update record');
+  }
+
+  return response.json();
+};
+
+export const deleteRecord = async (id: number): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/records/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to delete record');
+  }
+};
+
+export const checkHealth = async (): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    return response.ok;
+  } catch (err) {
+    return false;
+  }
+};

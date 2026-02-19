@@ -1,7 +1,6 @@
-import React from 'react';
 import { useClinicalRecordsContext } from '../context/ClinicalRecordContext';
 import { useHealth } from '../context/HealthContext';
-import { Users, Activity, CheckCircle2, AlertCircle, XCircle, PieChart, BarChart3, Wifi, WifiOff, Building2 } from 'lucide-react';
+import { Users, Activity, CheckCircle2, AlertCircle, XCircle, PieChart, BarChart3, Building2 } from 'lucide-react';
 import Loader from '../components/Loader';
 import ServerOfflineCard from '../components/ServerOfflineCard';
 

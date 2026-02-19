@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { FilterState, ClinicalRecord } from '../types';
 import { useClinicalRecordsContext } from '../context/ClinicalRecordContext';
 import { useModal } from '../context/ModalContext';
@@ -18,7 +18,6 @@ export default function RecordList() {
     pagination,
     loading,
     error,
-    isWakingUp: _isWakingUp,
     departments,
     statuses,
     setFilters,
@@ -31,7 +30,6 @@ export default function RecordList() {
 
   const { openModal } = useModal();
   const { confirmDelete } = useDelete();
-  const { showToast } = useNotification();
   const { isOnline, serverStatus } = useHealth();
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
@@ -56,11 +54,6 @@ export default function RecordList() {
   const handleDeleteRequest = (record: ClinicalRecord) => {
     confirmDelete(record.id, `${record.patientName} (${record.patientId})`);
   };
-
-  useEffect(() => {
-    console.log('isOnline', isOnline, "serverStatus", serverStatus, "api", process.env.REACT_APP_API_URL);
-
-  }, [isOnline, serverStatus]);
 
   return (
     <>

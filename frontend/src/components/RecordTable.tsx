@@ -1,7 +1,6 @@
-import React from 'react';
 import { ClinicalRecord } from '../types';
 import StatusBadge from './StatusBadge';
-import { ChevronUp, ChevronDown, Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { formatDate } from '../utils/dateFormatter';
 
 interface RecordTableProps {

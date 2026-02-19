@@ -25,7 +25,6 @@ body {
   min-height: 100vh;
 }
 
-/* Apple Glass */
 .glass {
   background: rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(20px) saturate(180%);

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { ServerStatus } from '../components/ServerOfflineCard';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:300/api';
+import { API_BASE_URL } from '../utils/constants';
 
 interface HealthContextType {
   isOnline: boolean | null;

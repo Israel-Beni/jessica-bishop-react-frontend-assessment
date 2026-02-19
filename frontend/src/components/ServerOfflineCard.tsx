@@ -14,7 +14,7 @@ interface ServerOfflineCardProps {
 
 const ELLIPSIS_FRAMES = ['.', '..', '...'];
 
-export default function ServerOfflineCard({ status, message, onRetry }: ServerOfflineCardProps) {
+export default function ServerOfflineCard({ status, onRetry }: ServerOfflineCardProps) {
   const [ellipsis, setEllipsis] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -79,7 +79,7 @@ export default function ServerOfflineCard({ status, message, onRetry }: ServerOf
       heading: 'Could not reach the server',
       body: (
         <p className="text-sm text-emerald-900/60">
-          {message || 'Network error — the backend is unreachable. Check your connection or try again.'}
+          {'Network error — the backend is unreachable. Check your connection or try again.'}
         </p>
       ),
       btn: { label: 'Retry connection', action: onRetry ?? (() => window.location.reload()) },

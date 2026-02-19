@@ -22,7 +22,7 @@ const HealthContext = createContext<HealthContextType>({
 async function checkServerStatus(): Promise<ServerStatus> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8 s per attempt
+    const timeout = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal });
     clearTimeout(timeout);
 
@@ -48,16 +48,13 @@ export const HealthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    // Immediate check on mount
     poll();
 
-    // When waking, retry aggressively every 5 s (up to Render's ~60 s cold-start)
-    // Otherwise poll every 15 s to stay up-to-date without hammering the server
     const startPolling = (fast: boolean) => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(async () => {
         const status = await poll();
-        // Once online or a stable error, slow down polling
+
         if ((fast && status === 'online') || status === 'offline') {
           startPolling(false);
         }

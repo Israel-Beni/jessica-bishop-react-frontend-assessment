@@ -1,14 +1,16 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { FilterState, ClinicalRecord } from '../types';
 import { useClinicalRecordsContext } from '../context/ClinicalRecordContext';
 import { useModal } from '../context/ModalContext';
 import { useDelete } from '../context/DeleteContext';
 import { useNotification } from '../context/NotificationContext';
+import { useHealth } from '../context/HealthContext';
 import RecordTable from './RecordTable';
 import RecordCard from './RecordCard';
 import SearchFilter from './SearchFilter';
-import { ChevronLeft, ChevronRight, PlusCircle, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import Loader from './Loader';
+import ServerOfflineCard from './ServerOfflineCard';
 
 export default function RecordList() {
   const {
@@ -16,7 +18,7 @@ export default function RecordList() {
     pagination,
     loading,
     error,
-    isWakingUp,
+    isWakingUp: _isWakingUp,
     departments,
     statuses,
     setFilters,
@@ -30,6 +32,7 @@ export default function RecordList() {
   const { openModal } = useModal();
   const { confirmDelete } = useDelete();
   const { showToast } = useNotification();
+  const { isOnline, serverStatus } = useHealth();
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
@@ -54,21 +57,14 @@ export default function RecordList() {
     confirmDelete(record.id, `${record.patientName} (${record.patientId})`);
   };
 
+  useEffect(() => {
+    console.log('isOnline', isOnline, "serverStatus", serverStatus, "api", process.env.REACT_APP_API_URL);
+
+  }, [isOnline, serverStatus]);
+
   return (
     <>
       <div className="relative animate-fade-in">
-        {isWakingUp && (
-          <div className="mb-8 p-6 glass border-emerald-100/50 flex items-center rounded-[32px] animate-pulse">
-            <div className="w-10 h-10 bg-emerald-100 rounded-2xl flex items-center justify-center mr-4">
-              <AlertCircle className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-emerald-950 font-black tracking-tight">System Initializing</p>
-              <p className="text-emerald-900/40 text-sm font-bold">The clinical database is waking up. Standard protocol delayed...</p>
-            </div>
-          </div>
-        )}
-
 
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-10 gap-6">
           <div className="w-full lg:max-w-2xl">
@@ -78,13 +74,15 @@ export default function RecordList() {
               statuses={statuses}
             />
           </div>
-          <button
-            onClick={openCreateForm}
-            className="w-full lg:w-auto flex items-center justify-center px-10 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-sm hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all transform hover:translate-y-[-2px] active:translate-y-[0px] group"
-          >
-            <PlusCircle className="w-6 h-6 mr-3 group-hover:rotate-90 transition-transform duration-500" />
-            New Patient
-          </button>
+          {isOnline && (
+            <button
+              onClick={openCreateForm}
+              className="w-full lg:w-auto flex items-center justify-center px-10 py-5 bg-emerald-600 text-white rounded-[24px] font-black text-sm hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all transform hover:translate-y-[-2px] active:translate-y-[0px] group"
+            >
+              <PlusCircle className="w-6 h-6 mr-3 group-hover:rotate-90 transition-transform duration-500" />
+              New Patient
+            </button>
+          )}
         </div>
 
 
@@ -96,19 +94,7 @@ export default function RecordList() {
             />
           </div>
         ) : error ? (
-          <div className="glass p-16 rounded-[48px] text-center border-rose-100">
-            <div className="w-24 h-24 bg-rose-50 rounded-[32px] flex items-center justify-center mx-auto mb-8">
-              <AlertCircle className="w-12 h-12 text-rose-500" />
-            </div>
-            <h3 className="text-3xl font-black text-emerald-950 mb-4 tracking-tight">Connection Alert</h3>
-            <p className="text-rose-700/60 font-bold mb-10 max-w-md mx-auto">{error}</p>
-            <button
-              onClick={refresh}
-              className="px-10 py-4 bg-white border border-rose-100 text-rose-600 font-black rounded-2xl hover:bg-rose-50 transition-all shadow-sm"
-            >
-              Force Re-synchronization
-            </button>
-          </div>
+          <ServerOfflineCard status={serverStatus !== 'online' ? serverStatus : 'offline'} message={error} onRetry={refresh} />
         ) : (
           <>
             <div className="flex items-center mb-6 pl-2">

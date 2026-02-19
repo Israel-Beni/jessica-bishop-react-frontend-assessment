@@ -3,7 +3,6 @@ import { FilterState, ClinicalRecord } from '../types';
 import { useClinicalRecordsContext } from '../context/ClinicalRecordContext';
 import { useModal } from '../context/ModalContext';
 import { useDelete } from '../context/DeleteContext';
-import { useNotification } from '../context/NotificationContext';
 import { useHealth } from '../context/HealthContext';
 import RecordTable from './RecordTable';
 import RecordCard from './RecordCard';

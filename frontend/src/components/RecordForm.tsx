@@ -1,76 +1,73 @@
-import React, { useState } from 'react';
-import { RecordStatus, FilterState } from '../types';
-import { createRecord, CreateRecordData } from '../services/api';
-import FormField from './FormField';
+import React, { useState, useEffect } from 'react';
+import { Database, X } from 'lucide-react';
+import { useClinicalRecordsContext } from '../context/ClinicalRecordContext';
+import { useModal } from '../context/ModalContext';
+import { useNotification } from '../context/NotificationContext';
 
-interface RecordFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  departments: string[];
-  statuses: string[];
-  suggestedPatientId: string;
-}
+export default function RecordForm() {
+  const { addRecord, updateExistingRecord, departments, statuses, nextPatientId } = useClinicalRecordsContext();
+  const { isOpen, editingRecord, closeModal } = useModal();
+  const { showToast } = useNotification();
 
-const INITIAL_FORM_DATA: CreateRecordData = {
-  patientId: '',
-  patientName: '',
-  dateOfBirth: '',
-  diagnosis: '',
-  admissionDate: '',
-  dischargeDate: null,
-  status: 'Active',
-  department: '',
-};
-
-export default function RecordForm({ isOpen, onClose, onSuccess, departments, statuses, suggestedPatientId }: RecordFormProps) {
-  const [formData, setFormData] = useState<CreateRecordData>(INITIAL_FORM_DATA);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateRecordData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    patientId: '',
+    patientName: '',
+    dateOfBirth: '',
+    admissionDate: '',
+    diagnosis: '',
+    dischargeDate: '',
+    status: 'Active',
+    department: '',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  React.useEffect(() => {
+  // Reset / populate form whenever modal opens
+  useEffect(() => {
     if (isOpen) {
-      setFormData(prev => ({ ...prev, patientId: suggestedPatientId }));
+      setApiError(null);
+      setErrors({});
+      if (editingRecord) {
+        setFormData({
+          patientId: editingRecord.patientId,
+          patientName: editingRecord.patientName,
+          dateOfBirth: editingRecord.dateOfBirth,
+          admissionDate: editingRecord.admissionDate,
+          diagnosis: editingRecord.diagnosis,
+          dischargeDate: editingRecord.dischargeDate ?? '',
+          status: editingRecord.status,
+          department: editingRecord.department,
+        });
+      } else {
+        setFormData({
+          patientId: nextPatientId,
+          patientName: '',
+          dateOfBirth: '',
+          admissionDate: new Date().toISOString().split('T')[0],
+          diagnosis: '',
+          dischargeDate: '',
+          status: 'Active',
+          department: departments[0] ?? '',
+        });
+      }
     }
-  }, [isOpen, suggestedPatientId]);
-
-  if (!isOpen) return null;
+  }, [isOpen, editingRecord, nextPatientId, departments]);
 
   const validate = (): boolean => {
-    const newErrors: Partial<Record<keyof CreateRecordData, string>> = {};
-
-    if (!formData.patientName) newErrors.patientName = 'Patient Name is required';
-    else if (formData.patientName.length < 2) newErrors.patientName = 'Min 2 characters';
-
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of Birth is required';
-    else if (new Date(formData.dateOfBirth) >= new Date()) newErrors.dateOfBirth = 'Must be in the past';
-
-    if (!formData.diagnosis) newErrors.diagnosis = 'Diagnosis is required';
-    else if (formData.diagnosis.length < 2) newErrors.diagnosis = 'Min 2 characters';
-
-    if (!formData.admissionDate) newErrors.admissionDate = 'Admission Date is required';
-
-    if (formData.dischargeDate && new Date(formData.dischargeDate) < new Date(formData.admissionDate)) {
-      newErrors.dischargeDate = 'Must be after or equal to admission date';
+    const newErrors: Record<string, string> = {};
+    if (!formData.patientId.trim()) newErrors.patientId = 'Patient ID is required';
+    else if (!/^P\d{3,}$/.test(formData.patientId.trim())) newErrors.patientId = 'Format must be P### (e.g. P007)';
+    if (!formData.patientName.trim()) newErrors.patientName = 'Patient name is required';
+    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+    if (!formData.admissionDate) newErrors.admissionDate = 'Admission date is required';
+    if (!formData.diagnosis.trim()) newErrors.diagnosis = 'Diagnosis is required';
+    if (!formData.department.trim()) newErrors.department = 'Department is required';
+    if (formData.dischargeDate && formData.admissionDate && formData.dischargeDate < formData.admissionDate) {
+      newErrors.dischargeDate = 'Discharge date must be after admission date';
     }
-
-    if (!formData.department) newErrors.department = 'Department is required';
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value === '' && name === 'dischargeDate' ? null : value
-    }));
-    // Clear error when field changes
-    if (errors[name as keyof CreateRecordData]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,171 +77,236 @@ export default function RecordForm({ isOpen, onClose, onSuccess, departments, st
     setIsSubmitting(true);
     setApiError(null);
 
+    const payload = {
+      patientId: formData.patientId.trim(),
+      patientName: formData.patientName.trim(),
+      dateOfBirth: formData.dateOfBirth,
+      admissionDate: formData.admissionDate,
+      diagnosis: formData.diagnosis.trim(),
+      dischargeDate: formData.dischargeDate || null,
+      status: formData.status as any,
+      department: formData.department.trim(),
+    };
+
     try {
-      await createRecord(formData);
-      setFormData(INITIAL_FORM_DATA);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Failed to create record');
+      if (editingRecord) {
+        await updateExistingRecord(editingRecord.id, payload);
+        showToast('Record updated successfully');
+      } else {
+        await addRecord(payload);
+        showToast('Patient admitted successfully');
+      }
+      closeModal();
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'An unexpected error occurred. Please try again.';
+      setApiError(message);
+      showToast(message, 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear field-level error on change
+    if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
+    if (apiError) setApiError(null);
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-100 flex justify-between items-center z-10">
-          <h2 className="text-xl font-bold text-gray-900">Create New Clinical Record</h2>
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-emerald-950/25 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && closeModal()}
+    >
+      <div className="bg-white border border-emerald-100 rounded-2xl shadow-[0px_24px_48px_-12px_rgba(16,24,40,0.18)] w-full max-w-2xl animate-fade-in flex flex-col max-h-[90vh]">
+
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-8 pt-8 pb-6 border-b border-emerald-50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 shrink-0">
+              <Database size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-emerald-950 leading-none">
+                {editingRecord ? 'Update Record' : 'New Admission'}
+              </h2>
+              <p className="text-xs text-emerald-900/40 font-medium mt-1 uppercase tracking-widest">
+                {editingRecord ? `Editing ${editingRecord.patientId}` : 'Register a new patient'}
+              </p>
+            </div>
+          </div>
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            onClick={closeModal}
+            aria-label="Close modal"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-emerald-900/30 hover:text-emerald-950 hover:bg-emerald-50 transition-all"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        {/* Scrollable form body */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto px-8 py-6 flex flex-col gap-5" noValidate>
+
+          {/* API-level error banner */}
           {apiError && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-r flex items-center">
-              <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              {apiError}
+            <div className="flex items-start gap-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl px-4 py-3 text-sm font-medium">
+              <span className="mt-0.5 shrink-0">⚠</span>
+              <span>{apiError}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-            <FormField label="Patient ID" id="patientId">
+          {/* Row 1: Patient ID + Patient Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Patient ID" error={errors.patientId} hint="Format: P007">
               <input
-                id="patientId"
                 name="patientId"
-                type="text"
+                placeholder="P007"
                 readOnly
-                className="w-full border border-gray-200 bg-gray-50 rounded-md px-3 py-2 text-sm text-gray-500 focus:outline-none cursor-not-allowed font-mono"
+                className={inputClass(!!errors.patientId, true)}
                 value={formData.patientId}
-              />
-              <p className="mt-1 text-[10px] text-gray-400">Unique ID is automatically assigned</p>
-            </FormField>
+                onChange={handleChange}
 
-            <FormField label="Patient Name" id="patientName" error={errors.patientName} required>
+              />
+            </Field>
+            <Field label="Patient Name" error={errors.patientName}>
               <input
-                id="patientName"
                 name="patientName"
-                type="text"
-                placeholder="John Doe"
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${errors.patientName ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="Alice Johnson"
+                className={inputClass(!!errors.patientName)}
                 value={formData.patientName}
                 onChange={handleChange}
               />
-            </FormField>
+            </Field>
+          </div>
 
-            <FormField label="Date of Birth" id="dateOfBirth" error={errors.dateOfBirth} required>
+          {/* Row 2: DOB + Admission Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Date of Birth" error={errors.dateOfBirth}>
               <input
-                id="dateOfBirth"
                 name="dateOfBirth"
                 type="date"
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'}`}
+                className={inputClass(!!errors.dateOfBirth)}
                 value={formData.dateOfBirth}
                 onChange={handleChange}
               />
-            </FormField>
-
-            <FormField label="Diagnosis" id="diagnosis" error={errors.diagnosis} required>
+            </Field>
+            <Field label="Admission Date" error={errors.admissionDate}>
               <input
-                id="diagnosis"
-                name="diagnosis"
-                type="text"
-                placeholder="Hypertension"
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${errors.diagnosis ? 'border-red-500' : 'border-gray-300'}`}
-                value={formData.diagnosis}
-                onChange={handleChange}
-              />
-            </FormField>
-
-            <FormField label="Admission Date" id="admissionDate" error={errors.admissionDate} required>
-              <input
-                id="admissionDate"
                 name="admissionDate"
                 type="date"
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${errors.admissionDate ? 'border-red-500' : 'border-gray-300'}`}
+                className={inputClass(!!errors.admissionDate)}
                 value={formData.admissionDate}
                 onChange={handleChange}
               />
-            </FormField>
+            </Field>
+          </div>
 
-            <FormField label="Discharge Date" id="dischargeDate" error={errors.dischargeDate}>
-              <input
-                id="dischargeDate"
-                name="dischargeDate"
-                type="date"
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${errors.dischargeDate ? 'border-red-500' : 'border-gray-300'}`}
-                value={formData.dischargeDate || ''}
-                onChange={handleChange}
-              />
-            </FormField>
+          {/* Row 3: Diagnosis (full width) */}
+          <Field label="Diagnosis" error={errors.diagnosis}>
+            <input
+              name="diagnosis"
+              placeholder="e.g. Myocardial Infarction"
+              className={inputClass(!!errors.diagnosis)}
+              value={formData.diagnosis}
+              onChange={handleChange}
+            />
+          </Field>
 
-            <FormField label="Status" id="status" required>
+          {/* Row 4: Discharge Date (optional) */}
+          <Field label="Discharge Date" error={errors.dischargeDate} hint="Optional">
+            <input
+              name="dischargeDate"
+              type="date"
+              className={inputClass(!!errors.dischargeDate)}
+              value={formData.dischargeDate}
+              onChange={handleChange}
+            />
+          </Field>
+
+          {/* Row 5: Status + Department */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Status" error={errors.status}>
               <select
-                id="status"
                 name="status"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                className={inputClass(false)}
                 value={formData.status}
                 onChange={handleChange}
               >
-                {statuses.filter(s => s !== 'All').map(s => <option key={s} value={s}>{s}</option>)}
+                {statuses.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-            </FormField>
-
-            <FormField label="Department" id="department" error={errors.department} required>
+            </Field>
+            <Field label="Department" error={errors.department}>
               <input
-                id="department"
                 name="department"
                 list="dept-list"
-                placeholder="e.g. Cardiology or new department"
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${errors.department ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="e.g. Cardiology"
+                className={inputClass(!!errors.department)}
                 value={formData.department}
                 onChange={handleChange}
-                autoComplete="off"
               />
               <datalist id="dept-list">
-                {departments.filter(d => d !== 'All').map(d => (
-                  <option key={d} value={d} />
-                ))}
+                {departments.map(d => <option key={d} value={d} />)}
               </datalist>
-            </FormField>
+            </Field>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end space-x-3">
+          {/* Actions */}
+          <div className="flex gap-3 pt-2 border-t border-emerald-50 mt-1">
             <button
               type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition"
-              disabled={isSubmitting}
+              onClick={closeModal}
+              className="flex-1 py-3 text-sm font-bold text-emerald-900/50 hover:text-emerald-950 rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg shadow transition flex items-center"
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl py-3 text-sm font-bold shadow-lg shadow-emerald-200/60 transition-all"
             >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating...
-                </>
-              ) : 'Create Record'}
+              {isSubmitting
+                ? 'Saving…'
+                : editingRecord ? 'Update Record' : 'Create Record'}
             </button>
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function inputClass(hasError: boolean, readOnly = false) {
+  const base = 'w-full rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all border';
+  const state = hasError
+    ? 'border-rose-300 bg-rose-50/30 text-rose-900 focus:border-rose-500'
+    : readOnly
+      ? 'border-emerald-100/50 bg-emerald-50/50 text-emerald-900/50 cursor-default'
+      : 'border-emerald-100 bg-white text-emerald-950 hover:border-emerald-200 focus:border-emerald-500 shadow-sm placeholder:text-emerald-900/20';
+  return `${base} ${state}`;
+}
+
+function Field({
+  label, hint, error, children,
+}: {
+  label: string; hint?: string; error?: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex justify-between items-center">
+        <label className="text-[10px] uppercase tracking-widest font-black text-emerald-900/40">{label}</label>
+        {hint && !error && <span className="text-[10px] text-emerald-900/30 font-medium">{hint}</span>}
+        {error && <span className="text-[10px] text-rose-500 font-bold">{error}</span>}
+      </div>
+      {children}
     </div>
   );
 }

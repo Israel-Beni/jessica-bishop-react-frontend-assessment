@@ -21,27 +21,27 @@ function SearchFilter({ onFilterChange, departments, statuses }: SearchFilterPro
   }, [search, status, department, onFilterChange]);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow mb-6 border border-gray-100">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Search */}
+    <div className="glass p-6 rounded-[32px] mb-8 border border-white/20">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="flex flex-col">
-          <label htmlFor="search" className="text-xs font-semibold text-gray-500 uppercase mb-1">Search</label>
-          <input
-            id="search"
-            type="text"
-            placeholder="Name, ID or Diagnosis..."
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <label htmlFor="search" className="text-xs font-extra-bold text-emerald-900/50 uppercase tracking-widest mb-2 ml-1">Search Database</label>
+          <div className="relative">
+            <input
+              id="search"
+              type="text"
+              placeholder="Name, ID or Diagnosis..."
+              className="w-full bg-white/50 border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-medium text-emerald-950 placeholder-emerald-900/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition-all duration-300 shadow-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
 
-        {/* Status Filter */}
         <div className="flex flex-col">
-          <label htmlFor="status" className="text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+          <label htmlFor="status" className="text-xs font-extra-bold text-emerald-900/50 uppercase tracking-widest mb-2 ml-1">Filter by Status</label>
           <select
             id="status"
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="w-full bg-white/50 border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-medium text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition-all duration-300 shadow-sm appearance-none cursor-pointer"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -50,12 +50,11 @@ function SearchFilter({ onFilterChange, departments, statuses }: SearchFilterPro
           </select>
         </div>
 
-        {/* Department Filter */}
         <div className="flex flex-col">
-          <label htmlFor="department" className="text-xs font-semibold text-gray-500 uppercase mb-1">Department</label>
+          <label htmlFor="department" className="text-xs font-extra-bold text-emerald-900/50 uppercase tracking-widest mb-2 ml-1">Filter by Department</label>
           <select
             id="department"
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="w-full bg-white/50 border border-emerald-100 rounded-2xl px-4 py-3 text-sm font-medium text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white transition-all duration-300 shadow-sm appearance-none cursor-pointer"
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
           >
